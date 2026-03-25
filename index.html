@@ -3,115 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>수호천사 유나 - Fixed Ratio</title>
+    <title>수호천사 유나 - Visual Novel</title>
     <style>
         :root {
             --point-color: #87CEEB;
             --point-hover: #5fbce2;
             --bg-grad: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.95));
-            --game-width: 1216px;
-            --game-height: 832px;
             --aspect-ratio: 1216 / 832;
         }
 
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; font-family: 'Malgun Gothic', sans-serif;
-            background-color: #000;
-            display: flex; justify-content: center; align-items: center;
+            background-color: #000; display: flex; justify-content: center; align-items: center;
         }
 
         #game-outer-container {
-            width: 100vw;
-            height: calc(100vw / (var(--aspect-ratio)));
-            max-width: var(--game-width);
-            max-height: var(--game-height);
-            position: relative;
-            overflow: hidden;
+            width: 100vw; height: calc(100vw / (var(--aspect-ratio)));
+            max-width: 1216px; max-height: 832px;
+            position: relative; overflow: hidden;
             box-shadow: 0 0 50px rgba(0,0,0,0.8);
         }
 
-        /* 배경 이미지 레이어 (자연스러운 전환용) */
-        #game-bg {
+        /* 배경 및 전환 효과 */
+        .bg-layer {
             position: absolute; inset: 0;
             background-size: cover; background-position: center;
-            transition: background-image 0.8s ease-in-out; /* 장면 전환 효과 */
-            z-index: 1;
+            transition: opacity 0.8s ease-in-out; /* 부드러운 전환 */
         }
+        #bg-back { opacity: 0; }
+        #bg-front { opacity: 1; z-index: 1; }
 
         #game-screen {
-            position: absolute; inset: 0;
+            position: absolute; inset: 0; z-index: 5;
             display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
-            cursor: pointer; z-index: 2;
+            cursor: pointer;
         }
 
-        /* 선택지 스타일 통합 */
-        .choice-container {
-            position: absolute; inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none; flex-direction: column; justify-content: center;
-            align-items: center; gap: 15px; z-index: 40;
+        /* 선택지 스타일 공통 */
+        .btn-base {
+            cursor: pointer; font-weight: bold; transition: all 0.3s; text-align: center;
         }
 
+        /* ☆ 일반 선택지 (우상단) */
         #linear-choice-container {
-            background: transparent; justify-content: flex-end; align-items: flex-end;
-            bottom: 240px; right: 4%; inset: auto;
+            position: absolute; bottom: 230px; right: 4%;
+            display: none; flex-direction: column; gap: 12px; z-index: 30;
         }
-
-        .choice-btn {
-            background: rgba(255, 255, 255, 0.95);
-            color: #111; border: 2px solid var(--point-color);
-            padding: 12px 25px; border-radius: 20px 20px 0 20px;
-            cursor: pointer; font-size: 18px; font-weight: bold;
+        .linear-btn {
+            background: rgba(255, 255, 255, 0.95); color: #111;
+            border: 3px solid var(--point-color); padding: 12px 25px;
+            border-radius: 20px 20px 0 20px; font-size: 17px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            transition: all 0.2s;
         }
+        .linear-btn:hover { background: var(--point-color); color: white; transform: scale(1.05); }
 
+        /* ▶ 분기 선택지 (중앙) */
+        #branch-choice-overlay {
+            position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6);
+            display: none; flex-direction: column; justify-content: center;
+            align-items: center; gap: 20px; z-index: 40;
+        }
         .branch-btn {
             width: 80%; max-width: 500px; padding: 20px;
-            background: rgba(0, 0, 0, 0.6); color: white;
+            background: rgba(255, 255, 255, 0.1); color: white;
             border: 2px solid var(--point-color); border-radius: 12px;
-            font-size: 20px; font-weight: bold; cursor: pointer;
-            backdrop-filter: blur(10px); transition: 0.3s; text-align: center;
+            font-size: 20px; backdrop-filter: blur(5px);
         }
+        .branch-btn:hover { background: var(--point-color); color: #000; box-shadow: 0 0 20px var(--point-color); }
 
-        .choice-btn:hover, .branch-btn:hover {
-            background: var(--point-color); color: white;
-            transform: scale(1.02);
-        }
-
-        /* 하단 대사창 */
+        /* 대사창 */
         #dialogue-area {
-            position: relative; width: 94%; max-width: 1100px;
-            height: 180px; margin-bottom: 25px; padding: 30px 45px;
+            position: relative; width: 94%; height: 180px;
+            margin-bottom: 25px; padding: 30px 45px;
             background: var(--bg-grad); border-radius: 15px;
             border: 1px solid rgba(135, 206, 235, 0.3);
-            box-sizing: border-box; color: white; z-index: 10;
+            box-sizing: border-box; color: white;
         }
 
         #player-badge {
             position: absolute; top: -35px; right: 30px;
             background: var(--point-color); color: #000;
-            padding: 6px 20px; font-weight: bold; border-radius: 10px 10px 0 0;
+            padding: 5px 20px; font-weight: bold; border-radius: 10px 10px 0 0;
             display: none; font-size: 15px;
         }
 
         #name-label { color: var(--point-color); font-size: 24px; font-weight: bold; margin-bottom: 10px; }
         #text-content { font-size: 19px; line-height: 1.6; word-break: keep-all; }
 
-        #start-layer {
-            position: absolute; inset: 0; background: #000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
-        }
-
-        #start-btn {
-            background: none; border: 3px solid var(--point-color);
-            color: var(--point-color); padding: 15px 50px; font-size: 25px;
-            cursor: pointer; border-radius: 50px; font-weight: bold; transition: 0.3s;
-        }
-        #start-btn:hover { background: var(--point-color); color: #000; }
-
-        .shake { display: inline-block; animation: shake-anim 0.1s infinite; color: #ff8e8e; }
+        /* 효과 */
+        .shake { display: inline-block; animation: shake-anim 0.1s infinite; color: #ff8e8e; font-weight: bold; }
         @keyframes shake-anim { 0%{transform:translate(1px,1px)} 50%{transform:translate(-2px,-1px)} 100%{transform:translate(1px,-1px)} }
         
         .next-cursor { 
@@ -119,26 +100,40 @@
             color: var(--point-color); animation: bounce 1s infinite; display: none; 
         }
         @keyframes bounce { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-5px)} }
+
+        /* 시작화면 */
+        #start-layer {
+            position: absolute; inset: 0; background: #000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+        }
+        #start-btn {
+            background: none; border: 2px solid var(--point-color);
+            color: var(--point-color); padding: 15px 50px; font-size: 24px;
+            cursor: pointer; border-radius: 30px; font-weight: bold;
+        }
+        #start-btn:hover { background: var(--point-color); color: #000; }
     </style>
 </head>
 <body>
 
     <div id="game-outer-container">
+        <div id="bg-back" class="bg-layer"></div>
+        <div id="bg-front" class="bg-layer"></div>
+
         <div id="start-layer">
             <h1 style="color:white; margin-bottom: 30px;">수호천사 유나</h1>
             <button id="start-btn">GAME START</button>
         </div>
 
-        <div id="game-bg"></div>
         <div id="game-screen">
-            <div id="linear-choice-container" class="choice-container"></div>
-            <div id="branch-choice-overlay" class="choice-container" style="display:none;"></div>
+            <div id="linear-choice-container"></div>
+            <div id="branch-choice-overlay"></div>
 
             <div id="dialogue-area">
                 <div id="player-badge"></div>
                 <div id="name-label">유나</div>
                 <div id="text-content"></div>
-                <div class="next-cursor">▼</div>
+                <div class="next-cursor">▼ CLICK</div>
             </div>
         </div>
     </div>
@@ -162,87 +157,103 @@
         let currentIdx = 0;
         let isTyping = false;
         let typingTimer;
-        let fullTextContent = "";
+        let fullText = "";
+        let currentBG = "";
 
-        const bgElem = document.getElementById('game-bg');
-        const screenElem = document.getElementById('game-screen');
         const textElem = document.getElementById('text-content');
         const nameElem = document.getElementById('name-label');
+        const nextCursor = document.querySelector('.next-cursor');
         const linearBox = document.getElementById('linear-choice-container');
         const branchBox = document.getElementById('branch-choice-overlay');
         const playerBadge = document.getElementById('player-badge');
-        const nextCursor = document.querySelector('.next-cursor');
 
+        // 배경 전환 함수
+        function changeBG(bgNum) {
+            if (currentBG === bgNum) return;
+            const front = document.getElementById('bg-front');
+            const back = document.getElementById('bg-back');
+            const imgUrl = `${bgNum}.png`;
+
+            back.style.backgroundImage = `url('${imgUrl}')`;
+            back.style.opacity = 1;
+            front.style.opacity = 0;
+
+            setTimeout(() => {
+                front.style.backgroundImage = `url('${imgUrl}')`;
+                front.style.opacity = 1;
+                back.style.opacity = 0;
+                currentBG = bgNum;
+            }, 800);
+        }
+
+        // 타이핑 함수
         function typeText(targetText, name, callback) {
             isTyping = true;
             nextCursor.style.display = 'none';
             nameElem.innerText = name;
-            fullTextContent = targetText;
+            fullText = targetText;
             
-            // HTML 태그(shake 등)가 포함된 경우 즉시 출력
-            if(targetText.includes('<span')) {
+            // HTML 태그 포함 여부 확인
+            if (targetText.includes('<')) {
                 textElem.innerHTML = targetText;
-                finishTyping(callback);
-                return;
+                completeTyping(callback);
+            } else {
+                textElem.innerText = '';
+                let i = 0;
+                clearInterval(typingTimer);
+                typingTimer = setInterval(() => {
+                    if (i < targetText.length) {
+                        textElem.innerText += targetText.charAt(i);
+                        i++;
+                    } else {
+                        completeTyping(callback);
+                    }
+                }, 40);
             }
-
-            textElem.innerText = '';
-            let i = 0;
-            clearInterval(typingTimer);
-            typingTimer = setInterval(() => {
-                if(i < targetText.length) {
-                    textElem.innerText += targetText.charAt(i);
-                    i++;
-                } else {
-                    finishTyping(callback);
-                }
-            }, 40);
         }
 
-        function finishTyping(callback) {
+        function completeTyping(callback) {
             clearInterval(typingTimer);
             isTyping = false;
             nextCursor.style.display = 'block';
-            if(callback) callback();
+            if (callback) callback();
         }
 
         function render() {
             const data = script[currentIdx];
-            if(!data) return;
+            if (!data) return;
 
-            // UI 초기화
             linearBox.style.display = 'none';
             branchBox.style.display = 'none';
-            playerBadge.style.display = 'none';
 
-            if(data.type === 'char') {
-                if(data.bg) {
-                    bgElem.style.backgroundImage = `url('${data.bg}.png')`;
-                }
+            if (data.type === 'char') {
+                if (data.bg) changeBG(data.bg);
                 typeText(data.text, data.name);
             } else {
-                showChoiceUI(data);
+                showChoice(data);
             }
         }
 
-        function showChoiceUI(data) {
+        function showChoice(data) {
             nextCursor.style.display = 'none';
             const isBranch = data.type === 'branch';
-            const container = isBranch ? branchBox : linearBox;
+            const targetBox = isBranch ? branchBox : linearBox;
             
-            container.innerHTML = '';
-            container.style.display = 'flex';
+            targetBox.innerHTML = '';
+            targetBox.style.display = 'flex';
 
             data.choices.forEach(c => {
                 const btn = document.createElement('div');
-                btn.className = isBranch ? 'branch-btn' : 'choice-btn';
-                btn.innerText = isBranch ? c.text : c;
+                btn.className = isBranch ? 'branch-btn btn-base' : 'linear-btn btn-base';
+                const choiceText = isBranch ? c.text : c;
+                const nextIdx = isBranch ? c.nextIndex : currentIdx + 1;
+
+                btn.innerText = choiceText;
                 btn.onclick = (e) => {
                     e.stopPropagation();
-                    const nextIdx = isBranch ? c.nextIndex : currentIdx + 1;
-                    selectChoice(btn.innerText, nextIdx);
+                    selectChoice(choiceText, nextIdx);
                 };
-                container.appendChild(btn);
+                targetBox.appendChild(btn);
             });
         }
 
@@ -252,39 +263,40 @@
             playerBadge.innerText = txt;
             playerBadge.style.display = 'block';
 
-            // 플레이어가 대답하는 연출
             typeText(txt, '나', () => {
-                currentIdx = next; // 선택지 이후 다음 인덱스 설정
+                currentIdx = next; // 다음 인덱스 미리 세팅
             });
         }
 
-        // 화면 클릭 핸들러
-        screenElem.onclick = () => {
-            // 1. 타이핑 중이면 즉시 완료
-            if(isTyping) {
-                if(fullTextContent.includes('<span')) textElem.innerHTML = fullTextContent;
-                else textElem.innerText = fullTextContent;
-                finishTyping();
+        // 통합 클릭 제어
+        document.getElementById('game-screen').onclick = () => {
+            if (isTyping) {
+                if (fullText.includes('<')) textElem.innerHTML = fullText;
+                else textElem.innerText = fullText;
+                completeTyping();
                 return;
             }
 
-            // 2. 선택지가 떠 있으면 클릭 방지
-            if(linearBox.style.display === 'flex' || branchBox.style.display === 'flex') return;
+            // 선택지 활성화 중에는 클릭 무시
+            if (linearBox.style.display === 'flex' || branchBox.style.display === 'flex') return;
 
-            // 3. 현재 장면이 char 타입일 때의 흐름 제어
             const data = script[currentIdx];
-            if(data && data.type === 'char') {
-                if(data.end) {
-                    alert("이야기가 종료되었습니다.");
-                    location.reload();
-                } else {
-                    currentIdx++;
-                    render();
-                }
-            } else {
-                // player_linear 이후 대사가 끝난 상태에서 클릭하면 다음 render 호출
-                render();
+            if (!data) return;
+
+            if (data.end && !isTyping) {
+                alert("이야기가 종료되었습니다.");
+                location.reload();
+                return;
             }
+
+            // 플레이어 대사가 끝난 후라면 badge 숨기고 다음 캐릭터 대사로
+            if (playerBadge.style.display === 'block') {
+                playerBadge.style.display = 'none';
+            } else if (data.type === 'char') {
+                currentIdx++;
+            }
+            
+            render();
         };
 
         document.getElementById('start-btn').onclick = () => {
