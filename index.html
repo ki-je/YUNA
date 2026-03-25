@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yuna Visual Novel - Debugged</title>
+    <style>
+        :root {
+            --point-color: #87CEEB;
+            --point-hover: #5fbce2;
+            --bg-grad: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.95));
+            --text-white: #ffffff;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Malgun Gothic', sans-serif;
+            background-color: #1a1a1a;
+        }
+
+        #game-screen {
+            position: relative; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            transition: background-image 0.8s ease; /* 부드러운 배경 전환 */
+            display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+        }
+
+        /* ☆ 플레이어 일반 대사 선택 (대사창 상단 영역) */
+        #linear-choice-container {
+            position: absolute; bottom: 220px; right: 5%;
+            display: none; flex-direction: column; gap: 8px;
+            align-items: flex-end; z-index: 30;
+        }
+        .linear-btn {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333; border: 2px solid var(--point-color);
+            padding: 10px 22px; border-radius: 20px 20px 0 20px;
+            cursor: pointer; font-size: 15px; font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+        .linear-btn:hover { 
+            background: var(--point-color); color: white; 
+            transform: translateX(-5px);
+        }
+
+        /* ▶ 중앙 중요 선택지 */
+        #branch-choice-overlay {
+            position: absolute; inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: none; flex-direction: column; justify-content: center;
+            align-items: center; gap: 20px; z-index: 40;
+        }
+        .branch-btn {
+            width: 80%; max-width: 450px; padding: 22px;
+            background: rgba(255, 255, 255, 0.05); color: white;
+            border: 2px solid var(--point-color); border-radius: 12px;
+            font-size: 19px; font-weight: bold; cursor: pointer;
+            backdrop-filter: blur(5px); transition: all 0.3s;
+        }
+        .branch-btn:hover { 
+            background: var(--point-color); color: #000; 
+            box-shadow: 0 0 20px rgba(135, 206, 235, 0.6);
+        }
+
+        /* 하단 대사창 영역 */
+        #dialogue-area {
+            position: relative; width: 92%; max-width: 1000px;
+            height: 190px; margin-bottom: 30px; padding: 35px;
+            background: var(--bg-grad); border-radius: 15px;
+            border: 1px solid rgba(135, 206, 235, 0.2);
+            box-sizing: border-box; color: white; z-index: 10;
+        }
+
+        #player-badge {
+            position: absolute; top: -38px; right: 25px;
+            background: var(--point-color); color: #000;
+            padding: 6px 22px; font-weight: bold; border-radius: 12px 12px 0 0;
+            display: none; font-size: 15px; box-shadow: 0 -3px 10px rgba(0,0,0,0.2);
+        }
+
+        #name-label { color: var(--point-color); font-size: 24px; font-weight: bold; margin-bottom: 12px; }
+        #text-content { font-size: 19px; line-height: 1.7; word-break: keep-all; }
+
+        /* 스타트 화면 */
+        #start-layer {
+            position: absolute; inset: 0; background: #000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+        }
+        #start-btn {
+            background: none; border: 2px solid var(--point-color);
+            color: var(--point-color); padding: 18px 60px; font-size: 26px;
+            cursor: pointer; border-radius: 50px; font-weight: bold;
+            transition: 0.3s;
+        }
+        #start-btn:hover { background: var(--point-color); color: #000; }
+
+        /* 효과 및 애니메이션 */
+        .shake { display: inline-block; animation: shake-anim 0.15s infinite; color: #ff8e8e; font-size: 1.2em; font-weight: bold; }
+        @keyframes shake-anim { 0%{transform:translate(1px,1px)} 50%{transform:translate(-2px,-1px)} 100%{transform:translate(1px,-1px)} }
+        
+        .next-cursor { 
+            position: absolute; bottom: 20px; right: 30px; 
+            color: var(--point-color); animation: bounce 1s infinite; display: none; 
+            font-size: 14px; font-weight: bold;
+        }
+        @keyframes bounce { 0%, 100% {transform: translateY(0)} 50% {transform: translateY(-5px)} }
+    </style>
+</head>
+<body>
+
+    <div id="start-layer">
+        <h1 style="color:white; margin-bottom: 30px;">수호천사 유나</h1>
+        <button id="start-btn">GAME START</button>
+    </div>
+
+    <div id="game-screen">
+        <div id="linear-choice-container"></div>
+        <div id="branch-choice-overlay"></div>
+
+        <div id="dialogue-area">
+            <div id="player-badge"></div>
+            <div id="name-label">유나</div>
+            <div id="text-content"></div>
+            <div class="next-cursor">▼ CLICK</div>
+        </div>
+    </div>
+
+    <script>
+        const script = [
+            { type: 'char', bg: '1', name: '유나', text: '저기 있잖아....' },
+            { type: 'player_linear', choices: ['뭔데', '누군데 말걸지?', '저기 없는데.'] },
+            { type: 'char', bg: '2', name: '유나', text: '제발 도와줘!!!!' },
+            { type: 'player_linear', choices: ['일단 말해봐', '내가 왜', '싫어'] },
+            { type: 'char', bg: '3', name: '유나', text: '사실 나는 천사인데, 하늘에서 떨어져 버렸어... \n그런데 날개를 다쳐서 회복될 때까지만 같이있어줘.' },
+            { type: 'char', bg: '4', name: '유나', text: '내가 너의 수호천사가 되줄게!!!' },
+            { type: 'branch', choices: [
+                { text: '[1] 재미있겠다 당장하자', nextIndex: 7 },
+                { text: '[2] 천사라고? 미친거야? 너 사이비지?', nextIndex: 8 }
+            ]},
+            { type: 'char', bg: '5', name: '유나', text: '정말? 너무 고마워 진짜 기뻐~', end: true },
+            { type: 'char', bg: '6', name: '유나', text: '<span class="shake">흐아아앙!!!</span> \n그런거 진짜 아니란 말이야아....', end: true }
+        ];
+
+        const bgMap = {
+            '1': '1.png',
+            '2': '2.png',
+            '3': '3.png',
+            '4': '4.png',
+            '5': '5.png',
+            '6': '6.png'
+        };
+
+        let currentIdx = 0;
+        let isTyping = false;
+        let typingTimer;
+        let waitingForClick = false;
+        let fullTextContent = ""; // 스킵용 전체 텍스트 저장
+
+        const screen = document.getElementById('game-screen');
+        const textElem = document.getElementById('text-content');
+        const nameElem = document.getElementById('name-label');
+        const linearBox = document.getElementById('linear-choice-container');
+        const branchBox = document.getElementById('branch-choice-overlay');
+        const playerBadge = document.getElementById('player-badge');
+        const nextCursor = document.querySelector('.next-cursor');
+
+        function cleanText(txt) {
+            return txt.replace(/\[\d+\]\s*/g, '');
+        }
+
+        function typeText(targetText, name, callback) {
+            isTyping = true;
+            waitingForClick = false;
+            nextCursor.style.display = 'none';
+            nameElem.innerText = name;
+            fullTextContent = targetText; // 스킵 시 사용할 텍스트
+            
+            // HTML 태그가 있는 경우 (Shake 효과 등) 즉시 출력
+            if(targetText.includes('<span')) {
+                textElem.innerHTML = targetText;
+                finishTyping(callback);
+                return;
+            }
+
+            textElem.innerText = '';
+            let i = 0;
+            clearInterval(typingTimer);
+            typingTimer = setInterval(() => {
+                if(i < targetText.length) {
+                    textElem.innerText += targetText.charAt(i);
+                    i++;
+                } else {
+                    finishTyping(callback);
+                }
+            }, 40);
+        }
+
+        function finishTyping(callback) {
+            clearInterval(typingTimer);
+            isTyping = false;
+            nextCursor.style.display = 'block';
+            if(callback) callback();
+        }
+
+        function render() {
+            const data = script[currentIdx];
+            if(!data) return;
+
+            linearBox.style.display = 'none';
+            branchBox.style.display = 'none';
+            playerBadge.style.display = 'none';
+
+            if(data.type === 'char') {
+                if(data.bg && bgMap[data.bg]) {
+                    screen.style.backgroundImage = `url('${bgMap[data.bg]}')`;
+                }
+                typeText(data.text, data.name);
+            } else {
+                showChoiceUI(data);
+            }
+        }
+
+        function showChoiceUI(data) {
+            nextCursor.style.display = 'none';
+            if(data.type === 'player_linear') {
+                linearBox.innerHTML = '';
+                linearBox.style.display = 'flex';
+                data.choices.forEach(c => {
+                    const b = document.createElement('div');
+                    b.className = 'linear-btn';
+                    b.innerText = cleanText(c);
+                    b.onclick = (e) => { e.stopPropagation(); selectChoice(c, currentIdx + 1); };
+                    linearBox.appendChild(b);
+                });
+            } else {
+                branchBox.innerHTML = '';
+                branchBox.style.display = 'flex';
+                data.choices.forEach(c => {
+                    const b = document.createElement('div');
+                    b.className = 'branch-btn';
+                    b.innerText = cleanText(c.text);
+                    b.onclick = (e) => { e.stopPropagation(); selectChoice(c.text, c.nextIndex); };
+                    branchBox.appendChild(b);
+                });
+            }
+        }
+
+        function selectChoice(txt, next) {
+            const displayTxt = cleanText(txt);
+            linearBox.style.display = 'none';
+            branchBox.style.display = 'none';
+            
+            playerBadge.innerText = displayTxt;
+            playerBadge.style.display = 'block';
+
+            typeText(displayTxt, '나', () => {
+                currentIdx = next;
+                waitingForClick = true; 
+            });
+        }
+
+        // 화면 클릭 핸들러
+        screen.onclick = () => {
+            // 1. 타이핑 중이면 즉시 완료
+            if(isTyping) {
+                clearInterval(typingTimer);
+                if(fullTextContent.includes('<span')) {
+                    textElem.innerHTML = fullTextContent;
+                } else {
+                    textElem.innerText = fullTextContent;
+                }
+                finishTyping();
+                return;
+            }
+
+            // 2. 선택지 창이 떠있으면 클릭 무시
+            if(linearBox.style.display === 'flex' || branchBox.style.display === 'flex') return;
+
+            // 3. 플레이어 대사 후 대기 상태인 경우
+            if(waitingForClick) {
+                waitingForClick = false;
+                render();
+                return;
+            }
+
+            // 4. 일반 캐릭터 대사 다음으로 넘기기
+            const data = script[currentIdx];
+            if(data && data.type === 'char') {
+                if(data.end) {
+                    alert("이야기가 종료되었습니다.");
+                    location.reload();
+                } else {
+                    currentIdx++;
+                    render();
+                }
+            }
+        };
+
+        document.getElementById('start-btn').onclick = () => {
+            document.getElementById('start-layer').style.display = 'none';
+            render();
+        };
+    </script>
+</body>
+</html>
